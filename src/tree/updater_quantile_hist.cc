@@ -30,6 +30,16 @@
 #include "../common/column_matrix.h"
 #include "../common/threading_utils.h"
 
+#include <sys/time.h>
+#include <time.h>
+
+uint64_t get_time() {
+  struct timespec t;
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return t.tv_sec * 1000000000 + t.tv_nsec;
+}
+static uint64_t sumt = 0, part = 0, partn = 0, ts, ps, psn, numit = 0;
+
 namespace xgboost {
 namespace tree {
 
@@ -666,7 +676,8 @@ bool QuantileHistMaker::Builder<GradientSumT>::UpdatePredictionCache(
 template<typename GradientSumT>
 void QuantileHistMaker::Builder<GradientSumT>::InitSampling(const std::vector<GradientPair>& gpair,
                                                 const DMatrix& fmat,
-                                                std::vector<size_t>* row_indices) {
+                                                std::vector<size_t>* row_indices, const size_t conseс_num = 2ul) {
+  ts = get_time();
   const auto& info = fmat.Info();
   auto& rnd = common::GlobalRandom();
   std::vector<size_t>& row_indices_local = *row_indices;
@@ -683,42 +694,63 @@ void QuantileHistMaker::Builder<GradientSumT>::InitSampling(const std::vector<Gr
   row_indices_local.resize(j);
 #else
   const size_t nthread = this->nthread_;
-  std::vector<size_t> row_offsets(nthread, 0);
   /* usage of mt19937_64 give 2x speed up for subsampling */
   std::vector<std::mt19937> rnds(nthread);
   /* create engine for each thread */
   for (std::mt19937& r : rnds) {
     r = rnd;
   }
-  const size_t discard_size = info.num_row_ / nthread;
+  sumt += get_time() - ts;
   #pragma omp parallel num_threads(nthread)
   {
     const size_t tid = omp_get_thread_num();
-    const size_t ibegin = tid * discard_size;
-    const size_t iend = (tid == (nthread - 1)) ?
-                        info.num_row_ : ibegin + discard_size;
+    if (tid == 31) {
+      ps = get_time();
+    } else if (tid == 0) {
+      psn = get_time();
+    }
     std::bernoulli_distribution coin_flip(param_.subsample);
 
-    rnds[tid].discard(2*discard_size * tid);
-    for (size_t i = ibegin; i < iend; ++i) {
-      if (gpair[i].GetHess() >= 0.0f && coin_flip(rnds[tid])) {
-        p_row_indices[ibegin + row_offsets[tid]++] = i;
+    size_t cur_idx = consec_num * tid;
+    size_t consec_done = 0ul;
+    rnds[tid].discard(cur_idx);
+    while (cur_idx < info.num_row_) {
+      if (gpair[cur_idx].GetHess() >= 0.0f && coin_flip(rnds[tid])) {
+        p_row_indices[cur_idx] = cur_idx;
+      } else {
+        p_row_indices[cur_idx] = info.num_row_;
+      }
+      if(++consec_done == consec_num) {
+        size_t leap_size = consec_num * nthread;
+        cur_idx += leap_size;
+        rnds[tid].discard(leap_size);
+        consec_done = 0ul;
+      } else {
+        ++cur_idx;
       }
     }
-  }
-  /* discard global engine */
-  rnd = rnds[nthread - 1];
-  size_t prefix_sum = row_offsets[0];
-  for (size_t i = 1; i < nthread; ++i) {
-    const size_t ibegin = i * discard_size;
 
-    for (size_t k = 0; k < row_offsets[i]; ++k) {
-      row_indices_local[prefix_sum + k] = row_indices_local[ibegin + k];
+    size_t good_idxs_size = 0;
+    for (size_t i = 0; i < info.num_row_; ++i) {
+      if (p_row_indices[i] < info.num_row_) {
+        p_row_indices[good_idxs_size++] = p_row_indices[i];
+      }
     }
-    prefix_sum += row_offsets[i];
+    row_indices_local.resize(good_idxs_size);
+
+    if (tid == 31) {
+      part += get_time() - ps;
+    } else if (tid == 0) {
+      partn += get_time() - psn;
+    }
   }
-  /* resize row_indices to reduce memory */
-  row_indices_local.resize(prefix_sum);
+  ts = get_time();
+  sumt += get_time() - ts;
+  if (++numit == 1000) {
+    std::cout << "\nSEQUENTIONAL PART: " << static_cast<double>(sumt)/1000000000;
+    std::cout << "\n1ST THREAD: " << static_cast<double>(partn)/1000000000;
+    std::cout << "\n31ST THREAD: " << static_cast<double>(part)/1000000000 << std::endl;
+  }
 #endif  // XGBOOST_CUSTOMIZE_GLOBAL_PRNG
 }
 template<typename GradientSumT>
