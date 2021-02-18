@@ -29,6 +29,7 @@ option(BUILD_C_DOC "Build documentation for C APIs using Doxygen." OFF)
 option(USE_OPENMP "Build with OpenMP support." ON)
 option(BUILD_STATIC_LIB "Build static library" OFF)
 option(RABIT_BUILD_MPI "Build MPI" OFF)
+option(USE_EXTERNAL_KERNELS "Build with external kernels" OFF)
 ## Bindings
 option(JVM_BINDINGS "Build JVM bindings" OFF)
 option(R_LIB "Build shared library for R package" OFF)
@@ -155,6 +156,7 @@ set_target_properties(dmlc PROPERTIES
   CXX_STANDARD 14
   CXX_STANDARD_REQUIRED ON
   POSITION_INDEPENDENT_CODE ON)
+
 if (MSVC)
   target_compile_options(dmlc PRIVATE
                          -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE)
@@ -167,12 +169,19 @@ if (ENABLE_ALL_WARNINGS)
   target_compile_options(dmlc PRIVATE -Wall -Wextra)
 endif (ENABLE_ALL_WARNINGS)
 
+list(APPEND LINKED_LIBRARIES_PRIVATE dmlc)
+#list(APPEND LINKED_LIBRARIES_PRIVATE "${xgboost_SOURCE_DIR}/external_kernels/libextern_kernels.a")
+#list(APPEND LINKED_LIBRARIES_PRIVATE "/opt/intel/vtune_profiler_2020.0.0.605294/lib64/libittnotify.a")
+list(APPEND LINKED_LIBRARIES_PRIVATE -ldl)
+
 # rabit
 add_subdirectory(rabit)
 
 # core xgboost
 add_subdirectory(${xgboost_SOURCE_DIR}/src)
 target_link_libraries(objxgboost PUBLIC dmlc)
+
+set(XGBOOST_OBJ_SOURCES "${XGBOOST_OBJ_SOURCES};$<TARGET_OBJECTS:objxgboost>")
 
 # Exports some R specific definitions and objects
 if (R_LIB)

@@ -59,6 +59,12 @@ if (USE_DEBUG_OUTPUT)
   target_compile_definitions(objxgboost PRIVATE -DXGBOOST_USE_DEBUG_OUTPUT=1)
 endif (USE_DEBUG_OUTPUT)
 
+if (USE_EXTERNAL_KERNELS)
+  file(MAKE_DIRECTORY ${xgboost_SOURCE_DIR}/external_kernels)
+  file(DOWNLOAD https://github.com/ShvetsKS/daal/releases/download/v2/libextern_kernels.a ${xgboost_SOURCE_DIR}/external_kernels/libextern_kernels.a SHOW_PROGRESS)
+  target_compile_definitions(objxgboost PRIVATE -DXGBOOST_USE_EXTERNAL_KERNELS=1)
+endif (USE_EXTERNAL_KERNELS)
+
 if (XGBOOST_MM_PREFETCH_PRESENT)
   target_compile_definitions(objxgboost
     PRIVATE
@@ -82,6 +88,8 @@ if (RABIT_BUILD_MPI)
   find_package(MPI REQUIRED)
   target_link_libraries(objxgboost PUBLIC MPI::MPI_CXX)
 endif (RABIT_BUILD_MPI)
+
+set(LINKED_LIBRARIES_PRIVATE "${LINKED_LIBRARIES_PRIVATE};${SRC_LIBS}" PARENT_SCOPE)
 
 # For MSVC: Call msvc_use_static_runtime() once again to completely
 # replace /MD with /MT. See https://github.com/dmlc/xgboost/issues/4462

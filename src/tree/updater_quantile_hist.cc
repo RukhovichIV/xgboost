@@ -1,11 +1,12 @@
 /*!
- * Copyright 2017-2020 by Contributors
+ * Copyright 2017-2021 by Contributors
  * \file updater_quantile_hist.cc
  * \brief use quantized feature values to construct a tree
  * \author Philip Cho, Tianqi Checn, Egor Smirnov
  */
 #include <dmlc/timer.h>
 #include <rabit/rabit.h>
+#include <x86intrin.h>
 
 #include <cmath>
 #include <memory>
@@ -29,6 +30,18 @@
 #include "../common/row_set.h"
 #include "../common/column_matrix.h"
 #include "../common/threading_utils.h"
+
+#pragma intrinsic(__rdtsc)
+
+// #include "/opt/intel/vtune_profiler_2020.0.0.605294/include/ittnotify.h"
+
+// #include <sys/time.h>
+// #include <time.h>
+// uint64_t get_time() {
+//   struct timespec t;
+//   clock_gettime(CLOCK_MONOTONIC, &t);
+//   return t.tv_sec * 1000000000 + t.tv_nsec;
+// }
 
 namespace xgboost {
 namespace tree {
@@ -332,6 +345,7 @@ void QuantileHistMaker::Builder<GradientSumT>::BuildLocalHistograms(
     const GHistIndexBlockMatrix &gmatb,
     RegTree *p_tree,
     const std::vector<GradientPair> &gpair_h) {
+//  __itt_pause();
   builder_monitor_.Start("BuildLocalHistograms");
 
   const size_t n_nodes = nodes_for_explicit_hist_build_.size();
@@ -349,7 +363,8 @@ void QuantileHistMaker::Builder<GradientSumT>::BuildLocalHistograms(
   }
 
   hist_buffer_.Reset(this->nthread_, n_nodes, space, target_hists);
-
+/*uint64_t t1s = get_time();
+const uint64_t t1 = __rdtsc();*/
   // Parallel processing by nodes and data in each node
   common::ParallelFor2d(space, this->nthread_, [&](size_t nid_in_set, common::Range1d r) {
     const auto tid = static_cast<unsigned>(omp_get_thread_num());
@@ -361,8 +376,22 @@ void QuantileHistMaker::Builder<GradientSumT>::BuildLocalHistograms(
                                       nid);
     BuildHist(gpair_h, rid_set, gmat, gmatb, hist_buffer_.GetInitializedHist(tid, nid_in_set));
   });
+/*const uint64_t t2 = __rdtsc() - t1;
+uint64_t t2s = get_time() - t1s;
+uint64_t n_rows = 0;
+for(size_t i = 0; i < space.Size(); ++i) {
+  n_rows += space.GetRange(i).end() - space.GetRange(i).begin();
+}
+const size_t n_features = gmat.index.OffsetSize();
+std::cout << "\n___________n_features: " << n_features;
+std::cout << "\n___________n_nodes: " << n_nodes;
+std::cout << "\n___________n_rows: " << n_rows;
+
+std::cout << "\n___________t: " << (double)(t2)/(double)(n_rows*n_features);
+std::cout << "\nfrequency: " << (double)(t2)/(double)(t2s);*/
 
   builder_monitor_.Stop("BuildLocalHistograms");
+//  __itt_resume();
 }
 
 template<typename GradientSumT>
@@ -506,7 +535,9 @@ void QuantileHistMaker::Builder<GradientSumT>::ExpandWithDepthWise(
     SplitSiblings(qexpand_depth_wise_, &nodes_for_explicit_hist_build_,
                   &nodes_for_subtraction_trick_, p_tree);
     hist_rows_adder_->AddHistRows(this, &starting_index, &sync_count, p_tree);
+
     BuildLocalHistograms(gmat, gmatb, p_tree, gpair_h);
+
     hist_synchronizer_->SyncHistograms(this, starting_index, sync_count, p_tree);
     BuildNodeStats(gmat, p_fmat, p_tree, gpair_h);
 
@@ -1189,11 +1220,14 @@ void QuantileHistMaker::Builder<GradientSumT>::ApplySplit(const std::vector<Expa
                                             const ColumnMatrix& column_matrix,
                                             const HistCollection<GradientSumT>& hist,
                                             RegTree* p_tree) {
+//  __itt_pause();
   builder_monitor_.Start("ApplySplit");
   // 1. Find split condition for each split
   const size_t n_nodes = nodes.size();
   std::vector<int32_t> split_conditions;
+  builder_monitor_.Start("FindSplitConditions");
   FindSplitConditions(nodes, *p_tree, gmat, &split_conditions);
+  builder_monitor_.Stop("FindSplitConditions");
   // 2.1 Create a blocked space of size SUM(samples in each node)
   common::BlockedSpace2d space(n_nodes, [&](size_t node_in_set) {
     int32_t nid = nodes[node_in_set].nid;
@@ -1207,6 +1241,7 @@ void QuantileHistMaker::Builder<GradientSumT>::ApplySplit(const std::vector<Expa
     const size_t n_tasks = size / kPartitionBlockSize + !!(size % kPartitionBlockSize);
     return n_tasks;
   });
+  builder_monitor_.Start("ApplySplitPartition");
   // 2.3 Split elements of row_set_collection_ to left and right child-nodes for each node
   // Store results in intermediate buffers from partition_builder_
   common::ParallelFor2d(space, this->nthread_, [&](size_t node_in_set, common::Range1d r) {
@@ -1231,6 +1266,9 @@ void QuantileHistMaker::Builder<GradientSumT>::ApplySplit(const std::vector<Expa
         CHECK(false);  // no default behavior
     }
     });
+  builder_monitor_.Stop("ApplySplitPartition");
+  builder_monitor_.Start("ApplySplitMerge");
+
   // 3. Compute offsets to copy blocks of row-indexes
   // from partition_builder_ to row_set_collection_
   partition_builder_.CalculateRowOffsets();
@@ -1244,7 +1282,10 @@ void QuantileHistMaker::Builder<GradientSumT>::ApplySplit(const std::vector<Expa
   });
   // 5. Add info about splits into row_set_collection_
   AddSplitsToRowSet(nodes, p_tree);
+  builder_monitor_.Stop("ApplySplitMerge");
+
   builder_monitor_.Stop("ApplySplit");
+//  __itt_resume();
 }
 template <typename GradientSumT>
 void QuantileHistMaker::Builder<GradientSumT>::InitNewNode(int nid,
