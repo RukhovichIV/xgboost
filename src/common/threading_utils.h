@@ -10,6 +10,7 @@
 #include <vector>
 #include <algorithm>
 #include "xgboost/logging.h"
+#include "cpuid.h"
 
 namespace xgboost {
 namespace common {
@@ -148,6 +149,49 @@ void ParallelFor(Index size, Func fn) {
   ParallelFor(size, omp_get_max_threads(), fn);
 }
 
+inline uint32_t GetNumberOfPhysicalCores() {
+  uint32_t req_byte = 1u;
+  static CPUID cpuid(req_byte);
+
+  uint32_t num_procs_reported = omp_get_num_procs();
+  uint32_t ht_bit = 1u << 28u;
+  bool has_physical_ht = cpuid.EDX() & ht_bit;
+  if (!has_physical_ht) {
+    return num_procs_reported;
+  }
+
+  bool ht_enabled = true;
+  uint32_t one_byte_mask = (1u << 8u) - 1u;
+  uint32_t number_of_unique_ids = (cpuid.EBX() >> 16u) & one_byte_mask;
+  if (num_procs_reported <= number_of_unique_ids) {
+    ht_enabled = false;
+  }
+
+  /*
+  uint32_t cpuinfo[4];
+  cpuinfo[0] = cpuid.EAX();
+  cpuinfo[1] = cpuid.EBX();
+  cpuinfo[2] = cpuid.ECX();
+  cpuinfo[3] = cpuid.EDX();
+  std::cout << "\n\n";
+  for (unsigned j = 0u; j < 4u; ++j) {
+    for (unsigned i = 0u; i < 32u; ++i) {
+      if (i && i % 8 == 0) {
+        std::cout << ' ';
+      }
+      std::cout << static_cast<bool>(cpuinfo[j] & (1u << i));
+    }
+    std::cout << '\n';
+  }
+  std::cout << "\nNumber of ids = " << number_of_unique_ids << "\n";
+  std::cout << "Hyperthreading on CPU is " << ht_enabled << "\n";
+  std::cout << (ht_enabled ? (num_procs_reported >> 1u) : num_procs_reported);
+  std::cout << " threads will be reported\n";
+  std::cout << "\n\n";
+  */
+  return (ht_enabled ? (num_procs_reported >> 1u) : num_procs_reported);
+}
+
 /* \brief Configure parallel threads.
  *
  * \param p_threads Number of threads, when it's less than or equal to 0, this function
@@ -168,7 +212,7 @@ inline int32_t OmpSetNumThreadsWithoutHT(int32_t* p_threads) {
   auto& threads = *p_threads;
   int32_t nthread_original = omp_get_max_threads();
   if (threads <= 0) {
-    threads = nthread_original;
+    threads = GetNumberOfPhysicalCores();
   }
   omp_set_num_threads(threads);
   return nthread_original;
