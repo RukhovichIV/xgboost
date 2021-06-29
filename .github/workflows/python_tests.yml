@@ -1,6 +1,6 @@
 name: XGBoost-Python-Tests
 
-on: [push, pull_request]
+# on: [push, pull_request]
 
 jobs:
   python-sdist-test:
