@@ -26,9 +26,6 @@ import org.apache.spark.Partitioner
 abstract class XGBoostClassifierSuiteBase extends FunSuite with PerTest {
 
   protected val treeMethod: String = "hist"
-
-  
-
 }
 
 class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
