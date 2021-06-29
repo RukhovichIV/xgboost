@@ -233,14 +233,15 @@ class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
       "tree_method" -> treeMethod,
       "max_bin" -> 16)
 
-    val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
-    val prediction1 = model1.predict(testDM)
 
     val model2 = new XGBoostClassifier(paramMap ++ Array("num_round" -> round,
       "num_workers" -> numWorkers)).fit(trainingDF)
 
     val prediction2 = model2.transform(testDF).
       collect().map(row => (row.getAs[Int]("id"), row.getAs[DenseVector]("probability"))).toMap
+
+    val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
+    val prediction1 = model1.predict(testDM)
 
     assert(testDF.count() === prediction2.size)
     // the vector length in probability column is 2 since we have to fit to the evaluator in Spark
