@@ -163,7 +163,7 @@ void GBTree::ConfigureUpdaters() {
   /* Choose updaters according to tree_method parameters */
   switch (tparam_.tree_method) {
     case TreeMethod::kAuto:
-      // Use heuristic to choose between 'exact' and 'approx' This
+      // Use heuristic to choose between 'exact' and 'hist' This
       // choice is carried out in PerformTreeMethodHeuristic() before
       // calling this function.
       break;
