@@ -204,19 +204,25 @@ abstract class XGBoostClassifierSuiteBase extends FunSuite with PerTest {
 
 class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
   test("XGBoost-Spark XGBoostClassifier output should match XGBoost4j") {
+    System.err.println(s"o_o | test 1 | start")
     val trainingDM = new DMatrix(Classification.train.iterator)
     val testDM = new DMatrix(Classification.test.iterator)
     val trainingDF = buildDataFrame(Classification.train)
     val testDF = buildDataFrame(Classification.test)
+    System.err.println(s"o_o | test 1 | before train")
     checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF)
+    System.err.println(s"o_o | test 1 | after train")
   }
 
   test("XGBoostClassifier should make correct predictions after upstream random sort") {
+    System.err.println(s"o_o | test 2 | start")
     val trainingDM = new DMatrix(Classification.train.iterator)
     val testDM = new DMatrix(Classification.test.iterator)
     val trainingDF = buildDataFrameWithRandSort(Classification.train)
     val testDF = buildDataFrameWithRandSort(Classification.test)
+    System.err.println(s"o_o | test 2 | before train")
     checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF)
+    System.err.println(s"o_o | test 2 | after train")
   }
 
   private def checkResultsWithXGBoost4j(
@@ -232,15 +238,17 @@ class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
       "objective" -> "binary:logistic",
       "tree_method" -> treeMethod,
       "max_bin" -> 16)
-
+    System.err.println(s"o_o | inside | scala train")
     val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
     val prediction1 = model1.predict(testDM)
-
+    System.err.println(s"o_o | inside | scala train done")
+    System.err.println(s"o_o | inside | xgb train")
     val model2 = new XGBoostClassifier(paramMap ++ Array("num_round" -> round,
       "num_workers" -> numWorkers)).fit(trainingDF)
 
     val prediction2 = model2.transform(testDF).
       collect().map(row => (row.getAs[Int]("id"), row.getAs[DenseVector]("probability"))).toMap
+    System.err.println(s"o_o | inside | xgb train done")
 
     assert(testDF.count() === prediction2.size)
     // the vector length in probability column is 2 since we have to fit to the evaluator in Spark
