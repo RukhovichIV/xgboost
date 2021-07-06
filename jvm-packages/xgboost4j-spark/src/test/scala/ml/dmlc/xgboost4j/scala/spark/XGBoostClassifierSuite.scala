@@ -238,6 +238,7 @@ class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
       "objective" -> "binary:logistic",
       "tree_method" -> treeMethod,
       "num_workers" -> numWorkers,
+      "num_round" -> 5,
       "max_bin" -> 16)
     System.err.println(s"o_o | inside | scala train")
     val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
