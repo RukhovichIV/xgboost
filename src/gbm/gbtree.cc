@@ -137,11 +137,11 @@ void GBTree::PerformTreeMethodHeuristic(DMatrix* fmat) {
   if (rabit::IsDistributed()) {
     LOG(INFO) << "Tree method is automatically selected to be 'hist' "
                  "for distributed training.";
-    tparam_.tree_method = TreeMethod::kApprox;
+    tparam_.tree_method = TreeMethod::kHist;
   } else if (!fmat->SingleColBlock()) {
     LOG(INFO) << "Tree method is automatically set to 'hist' "
                  "since external-memory data matrix is used.";
-    tparam_.tree_method = TreeMethod::kHist;
+    tparam_.tree_method = TreeMethod::kApprox;
   } else if (fmat->Info().num_row_ >= (4UL << 20UL)) {
     /* Choose tree_method='hist' automatically for large data matrix */
     LOG(INFO) << "Tree method is automatically selected to be "
@@ -308,6 +308,7 @@ void GBTree::InitUpdater(Args const& cfg) {
   for (const std::string& pstr : ups) {
     std::unique_ptr<TreeUpdater> up(TreeUpdater::Create(pstr.c_str(), generic_param_));
     up->Configure(cfg);
+    std::cerr << "Added updater: " << up->Name() << '\n';
     updaters_.push_back(std::move(up));
   }
 }
@@ -352,7 +353,9 @@ void GBTree::BoostNewTrees(HostDeviceVector<GradientPair>* gpair,
   CHECK_EQ(gpair->Size(), p_fmat->Info().num_row_)
       << "Mismatching size between number of rows from input data and size of "
          "gradient vector.";
+  size_t itt = 0;
   for (auto& up : updaters_) {
+    std::cerr << "Calling update from: " << up->Name() << ", iteration " << itt++ << '\n';
     up->Update(gpair, p_fmat, new_trees);
   }
 }
