@@ -61,15 +61,15 @@ abstract class XGBoostRegressorSuiteBase extends FunSuite with PerTest {
       "silent" -> "1",
       "objective" -> "reg:squarederror",
       "max_bin" -> 16,
-      "tree_method" -> treeMethod,
-      "num_workers" -> numWorkers)
+      "tree_method" -> treeMethod)
 
     System.err.println(s"o_o | inside | scala train")
     val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
     val prediction1 = model1.predict(testDM)
     System.err.println(s"o_o | inside | scala train done")
     System.err.println(s"o_o | inside | xgb train")
-    val model2 = new XGBoostRegressor(paramMap ++ Array("num_round" -> round)).fit(trainingDF)
+    val model2 = new XGBoostRegressor(paramMap ++ Array("num_round" -> round,
+      "num_workers" -> numWorkers)).fit(trainingDF)
 
     val prediction2 = model2.transform(testDF).
         collect().map(row => (row.getAs[Int]("id"), row.getAs[Double]("prediction"))).toMap

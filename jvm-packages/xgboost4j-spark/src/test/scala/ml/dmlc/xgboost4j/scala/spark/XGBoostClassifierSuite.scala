@@ -25,7 +25,7 @@ import org.apache.spark.Partitioner
 
 abstract class XGBoostClassifierSuiteBase extends FunSuite with PerTest {
 
-  protected val treeMethod: String = "hist"
+  protected val treeMethod: String = "auto"
 
   test("Set params in XGBoost and MLlib way should produce same model") {
     val trainingDF = buildDataFrame(Classification.train)
@@ -237,15 +237,14 @@ class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
       "silent" -> "1",
       "objective" -> "binary:logistic",
       "tree_method" -> treeMethod,
-      "num_workers" -> 2,
-      "num_round" -> 5,
       "max_bin" -> 16)
     System.err.println(s"o_o | inside | scala train")
     val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
     val prediction1 = model1.predict(testDM)
     System.err.println(s"o_o | inside | scala train done")
     System.err.println(s"o_o | inside | xgb train")
-    val model2 = new XGBoostClassifier(paramMap ++ Array("num_round" -> round)).fit(trainingDF)
+    val model2 = new XGBoostClassifier(paramMap ++ Array("num_round" -> round,
+      "num_workers" -> numWorkers)).fit(trainingDF)
 
     val prediction2 = model2.transform(testDF).
       collect().map(row => (row.getAs[Int]("id"), row.getAs[DenseVector]("probability"))).toMap
