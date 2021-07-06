@@ -25,7 +25,7 @@ import org.apache.spark.Partitioner
 
 abstract class XGBoostClassifierSuiteBase extends FunSuite with PerTest {
 
-  protected val treeMethod: String = "auto"
+  protected val treeMethod: String = "hist"
 
   test("Set params in XGBoost and MLlib way should produce same model") {
     val trainingDF = buildDataFrame(Classification.train)
@@ -237,7 +237,7 @@ class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
       "silent" -> "1",
       "objective" -> "binary:logistic",
       "tree_method" -> treeMethod,
-      "num_workers" -> numWorkers,
+      "num_workers" -> 2,
       "num_round" -> 5,
       "max_bin" -> 16)
     System.err.println(s"o_o | inside | scala train")
