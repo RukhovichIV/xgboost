@@ -148,7 +148,7 @@ void GBTree::PerformTreeMethodHeuristic(DMatrix* fmat) {
                  "'hist' for faster speed. To use old behavior "
                  "(exact greedy algorithm on single machine), "
                  "set tree_method to 'exact'.";
-    tparam_.tree_method = TreeMethod::kHist;
+    tparam_.tree_method = TreeMethod::kApprox;
   } else {
     tparam_.tree_method = TreeMethod::kExact;
   }

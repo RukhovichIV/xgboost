@@ -25,7 +25,7 @@ import org.apache.spark.Partitioner
 
 abstract class XGBoostClassifierSuiteBase extends FunSuite with PerTest {
 
-  protected val treeMethod: String = "hist"
+  protected val treeMethod: String = "auto"
 
   test("Set params in XGBoost and MLlib way should produce same model") {
     val trainingDF = buildDataFrame(Classification.train)
