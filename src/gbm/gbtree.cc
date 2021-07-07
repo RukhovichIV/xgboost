@@ -138,10 +138,12 @@ void GBTree::PerformTreeMethodHeuristic(DMatrix* fmat) {
     LOG(INFO) << "Tree method is automatically selected to be 'hist' "
                  "for distributed training.";
     tparam_.tree_method = TreeMethod::kHist;
+    std::cerr << "o_o | heuristic | distributed (hist)\n";
   } else if (!fmat->SingleColBlock()) {
     LOG(INFO) << "Tree method is automatically set to 'hist' "
                  "since external-memory data matrix is used.";
     tparam_.tree_method = TreeMethod::kApprox;
+    std::cerr << "o_o | heuristic | external (approx)\n";
   } else if (fmat->Info().num_row_ >= (4UL << 20UL)) {
     /* Choose tree_method='hist' automatically for large data matrix */
     LOG(INFO) << "Tree method is automatically selected to be "
@@ -149,8 +151,10 @@ void GBTree::PerformTreeMethodHeuristic(DMatrix* fmat) {
                  "(exact greedy algorithm on single machine), "
                  "set tree_method to 'exact'.";
     tparam_.tree_method = TreeMethod::kApprox;
+    std::cerr << "o_o | heuristic | common (approx)\n";
   } else {
     tparam_.tree_method = TreeMethod::kExact;
+    std::cerr << "o_o | heuristic | common (exact)\n";
   }
   LOG(DEBUG) << "Using tree method: " << static_cast<int>(tparam_.tree_method);
 }
