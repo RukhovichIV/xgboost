@@ -28,7 +28,7 @@ import scala.util.Random
 
 trait PerTest extends BeforeAndAfterEach { self: FunSuite =>
 
-  protected val numWorkers: Int = min(Runtime.getRuntime.availableProcessors(), 1)
+  protected val numWorkers: Int = min(Runtime.getRuntime.availableProcessors(), 4)
 
   @transient private var currentSession: SparkSession = _
 
