@@ -237,14 +237,14 @@ class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
       "silent" -> "1",
       "objective" -> "binary:logistic",
       "tree_method" -> treeMethod,
-      "max_bin" -> 16)
+      "max_bin" -> 16,
+      "num_workers" -> numWorkers)
     System.err.println(s"o_o | inside | scala train")
     val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
     val prediction1 = model1.predict(testDM)
     System.err.println(s"o_o | inside | scala train done")
     System.err.println(s"o_o | inside | xgb train")
-    val model2 = new XGBoostClassifier(paramMap ++ Array("num_round" -> round,
-      "num_workers" -> numWorkers)).fit(trainingDF)
+    val model2 = new XGBoostClassifier(paramMap ++ Array("num_round" -> round)).fit(trainingDF)
 
     val prediction2 = model2.transform(testDF).
       collect().map(row => (row.getAs[Int]("id"), row.getAs[DenseVector]("probability"))).toMap
