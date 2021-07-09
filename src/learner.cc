@@ -304,7 +304,7 @@ class LearnerConfiguration : public Learner {
     generic_parameters_.UpdateAllowUnknown(args);
 
     ConsoleLogger::Configure(args);
-    common::OmpSetNumThreads(&generic_parameters_.nthread);
+    common::OmpSetNumThreadsWithoutHT(&generic_parameters_.nthread);
 
     // add additional parameters
     // These are cosntraints that need to be satisfied.
@@ -1051,8 +1051,10 @@ class LearnerImpl : public LearnerIO {
     auto& predt = local_cache->Cache(train, generic_parameters_.gpu_id);
 
     monitor_.Start("PredictRaw");
+    common::OmpSetNumThreads(&generic_parameters_.nthread);
     this->PredictRaw(train.get(), &predt, true, 0, 0);
     TrainingObserver::Instance().Observe(predt.predictions, "Predictions");
+    common::OmpSetNumThreadsWithoutHT(&generic_parameters_.nthread);
     monitor_.Stop("PredictRaw");
 
     monitor_.Start("GetGradient");
@@ -1084,6 +1086,7 @@ class LearnerImpl : public LearnerIO {
                           const std::vector<std::shared_ptr<DMatrix>>& data_sets,
                           const std::vector<std::string>& data_names) override {
     monitor_.Start("EvalOneIter");
+    common::OmpSetNumThreads(&generic_parameters_.nthread);
     this->Configure();
 
     std::ostringstream os;
@@ -1125,6 +1128,7 @@ class LearnerImpl : public LearnerIO {
       }
     }
 
+    common::OmpSetNumThreadsWithoutHT(&generic_parameters_.nthread);
     monitor_.Stop("EvalOneIter");
     return os.str();
   }
@@ -1134,6 +1138,7 @@ class LearnerImpl : public LearnerIO {
                unsigned layer_end, bool training,
                bool pred_leaf, bool pred_contribs, bool approx_contribs,
                bool pred_interactions) override {
+    common::OmpSetNumThreads(&generic_parameters_.nthread);
     int multiple_predictions = static_cast<int>(pred_leaf) +
                                static_cast<int>(pred_interactions) +
                                static_cast<int>(pred_contribs);
@@ -1158,6 +1163,7 @@ class LearnerImpl : public LearnerIO {
         obj_->PredTransform(out_preds);
       }
     }
+    common::OmpSetNumThreadsWithoutHT(&generic_parameters_.nthread);
   }
 
   int32_t BoostedRounds() const override {
