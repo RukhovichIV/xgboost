@@ -33,9 +33,18 @@ abstract class XGBoostRegressorSuiteBase extends FunSuite with PerTest {
     val testDM = new DMatrix(Regression.test.iterator)
     val trainingDF = buildDataFrame(Regression.train)
     val testDF = buildDataFrame(Regression.test)
+    // Hist method output is different when num_workers > 1
     System.err.println(s"o_o | test 3 | before train")
-    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF)
+    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, treeMethod, 1)
     System.err.println(s"o_o | test 3 | after train")
+  }
+
+  test("XGBoost-Spark XGBoostRegressor output should match XGBoost4j (distributed)") {
+    val trainingDM = new DMatrix(Regression.train.iterator)
+    val testDM = new DMatrix(Regression.test.iterator)
+    val trainingDF = buildDataFrame(Regression.train)
+    val testDF = buildDataFrame(Regression.test)
+    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, "approx", numWorkers)
   }
 
   test("XGBoostRegressor should make correct predictions after upstream random sort") {
@@ -44,9 +53,18 @@ abstract class XGBoostRegressorSuiteBase extends FunSuite with PerTest {
     val testDM = new DMatrix(Regression.test.iterator)
     val trainingDF = buildDataFrameWithRandSort(Regression.train)
     val testDF = buildDataFrameWithRandSort(Regression.test)
+    // Hist method output is different when num_workers > 1
     System.err.println(s"o_o | test 4 | before train")
-    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF)
+    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, treeMethod, 1)
     System.err.println(s"o_o | test 4 | after train")
+  }
+
+  test("XGBoostRegressor should make correct predictions after upstream random sort (dist)") {
+    val trainingDM = new DMatrix(Regression.train.iterator)
+    val testDM = new DMatrix(Regression.test.iterator)
+    val trainingDF = buildDataFrameWithRandSort(Regression.train)
+    val testDF = buildDataFrameWithRandSort(Regression.test)
+    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, "approx", numWorkers)
   }
 
   private def checkResultsWithXGBoost4j(
@@ -54,6 +72,8 @@ abstract class XGBoostRegressorSuiteBase extends FunSuite with PerTest {
       testDM: DMatrix,
       trainingDF: DataFrame,
       testDF: DataFrame,
+      explicitTreeMethod: String,
+      explicitNumWorkers: Int,
       round: Int = 5): Unit = {
     val paramMap = Map(
       "eta" -> "1",
@@ -61,19 +81,17 @@ abstract class XGBoostRegressorSuiteBase extends FunSuite with PerTest {
       "silent" -> "1",
       "objective" -> "reg:squarederror",
       "max_bin" -> 16,
-      "tree_method" -> treeMethod)
+      "tree_method" -> explicitTreeMethod)
 
     System.err.println(s"o_o | inside | scala train")
     val model1 = ScalaXGBoost.train(trainingDM, paramMap, round)
     val prediction1 = model1.predict(testDM)
-    System.err.println(s"o_o | inside | scala train done")
     System.err.println(s"o_o | inside | xgb train")
     val model2 = new XGBoostRegressor(paramMap ++ Array("num_round" -> round,
-      "num_workers" -> numWorkers)).fit(trainingDF)
-
+      "num_workers" -> explicitNumWorkers)).fit(trainingDF)
+    System.err.println(s"o_o | inside | train ok")
     val prediction2 = model2.transform(testDF).
         collect().map(row => (row.getAs[Int]("id"), row.getAs[Double]("prediction"))).toMap
-    System.err.println(s"o_o | inside | xgb train done")
 
     assert(prediction1.indices.count { i =>
       math.abs(prediction1(i)(0) - prediction2(i)) > 0.01
