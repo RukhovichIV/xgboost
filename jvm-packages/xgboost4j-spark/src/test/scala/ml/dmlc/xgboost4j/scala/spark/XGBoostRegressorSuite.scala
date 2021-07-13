@@ -35,7 +35,7 @@ abstract class XGBoostRegressorSuiteBase extends FunSuite with PerTest {
     val testDF = buildDataFrame(Regression.test)
     // Hist method output is different when num_workers > 1
     System.err.println(s"o_o | test 3 | before train")
-    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, treeMethod, 1)
+    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, "hist", 1)
     System.err.println(s"o_o | test 3 | after train")
   }
 
@@ -55,7 +55,7 @@ abstract class XGBoostRegressorSuiteBase extends FunSuite with PerTest {
     val testDF = buildDataFrameWithRandSort(Regression.test)
     // Hist method output is different when num_workers > 1
     System.err.println(s"o_o | test 4 | before train")
-    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, treeMethod, 1)
+    checkResultsWithXGBoost4j(trainingDM, testDM, trainingDF, testDF, "hist", 1)
     System.err.println(s"o_o | test 4 | after train")
   }
 
