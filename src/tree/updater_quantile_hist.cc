@@ -76,6 +76,7 @@ void QuantileHistMaker::CallBuilderUpdate(const std::unique_ptr<Builder<Gradient
 void QuantileHistMaker::Update(HostDeviceVector<GradientPair> *gpair,
                                DMatrix *dmat,
                                const std::vector<RegTree *> &trees) {
+  std::cerr << "o_o | Updater has been called\n";
   auto const &gmat =
       *(dmat->GetBatches<GHistIndexMatrix>(
                 BatchParam{GenericParameter::kCpuId, param_.max_bin})

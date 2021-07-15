@@ -134,23 +134,27 @@ void GBTree::PerformTreeMethodHeuristic(DMatrix* fmat) {
     return;
   }
 
-  if (rabit::IsDistributed()) {
-    LOG(INFO) << "Tree method is automatically selected to be 'approx' "
-                 "for distributed training.";
-    tparam_.tree_method = TreeMethod::kApprox;
-  } else if (!fmat->SingleColBlock()) {
-    LOG(INFO) << "Tree method is automatically set to 'approx' "
+  if (!fmat->SingleColBlock()) {
+    LOG(INFO) << "Tree method is automatically set to 'hist' "
                  "since external-memory data matrix is used.";
     tparam_.tree_method = TreeMethod::kApprox;
+    std::cerr << "o_o | heuristic | external (approx)\n";
+  } else if (rabit::IsDistributed()) {
+    LOG(INFO) << "Tree method is automatically selected to be 'hist' "
+                 "for distributed training.";
+    tparam_.tree_method = TreeMethod::kHist;
+    std::cerr << "o_o | heuristic | distributed (hist)\n";
   } else if (fmat->Info().num_row_ >= (4UL << 20UL)) {
-    /* Choose tree_method='approx' automatically for large data matrix */
+    /* Choose tree_method='hist' automatically for large data matrix */
     LOG(INFO) << "Tree method is automatically selected to be "
-                 "'approx' for faster speed. To use old behavior "
+                 "'hist' for faster speed. To use old behavior "
                  "(exact greedy algorithm on single machine), "
                  "set tree_method to 'exact'.";
     tparam_.tree_method = TreeMethod::kApprox;
+    std::cerr << "o_o | heuristic | common (approx)\n";
   } else {
     tparam_.tree_method = TreeMethod::kExact;
+    std::cerr << "o_o | heuristic | common (exact)\n";
   }
   LOG(DEBUG) << "Using tree method: " << static_cast<int>(tparam_.tree_method);
 }
@@ -163,7 +167,7 @@ void GBTree::ConfigureUpdaters() {
   /* Choose updaters according to tree_method parameters */
   switch (tparam_.tree_method) {
     case TreeMethod::kAuto:
-      // Use heuristic to choose between 'exact' and 'approx' This
+      // Use heuristic to choose between 'exact' and 'hist' This
       // choice is carried out in PerformTreeMethodHeuristic() before
       // calling this function.
       break;
@@ -308,6 +312,7 @@ void GBTree::InitUpdater(Args const& cfg) {
   for (const std::string& pstr : ups) {
     std::unique_ptr<TreeUpdater> up(TreeUpdater::Create(pstr.c_str(), generic_param_));
     up->Configure(cfg);
+    std::cerr << "Added updater: " << up->Name() << '\n';
     updaters_.push_back(std::move(up));
   }
 }
@@ -352,7 +357,9 @@ void GBTree::BoostNewTrees(HostDeviceVector<GradientPair>* gpair,
   CHECK_EQ(gpair->Size(), p_fmat->Info().num_row_)
       << "Mismatching size between number of rows from input data and size of "
          "gradient vector.";
+  size_t itt = 0;
   for (auto& up : updaters_) {
+    std::cerr << "Calling update from: " << up->Name() << ", iteration " << itt++ << '\n';
     up->Update(gpair, p_fmat, new_trees);
   }
 }

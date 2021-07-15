@@ -3,9 +3,9 @@
 
 name: XGBoost-R-noLD
 
-on:
-  pull_request_review_comment:
-    types: [created]
+# on:
+#   pull_request_review_comment:
+#     types: [created]
 
 env:
   R_PACKAGES: c('XML', 'igraph', 'data.table', 'ggplot2', 'DiagrammeR', 'Ckmeans.1d.dp', 'vcd', 'testthat', 'lintr', 'knitr', 'rmarkdown', 'e1071', 'cplm', 'devtools', 'float', 'titanic')
