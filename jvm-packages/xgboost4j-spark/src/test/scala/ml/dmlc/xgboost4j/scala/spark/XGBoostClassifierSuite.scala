@@ -304,7 +304,7 @@ class XGBoostCpuClassifierSuite extends XGBoostClassifierSuiteBase {
 
   test("infrequent features (use_external_memory)") {
     val paramMap = Map("eta" -> "1", "max_depth" -> "6", "silent" -> "1",
-      "objective" -> "binary:logistic",
+      "objective" -> "binary:logistic", "tree_method" -> "approx",
       "num_round" -> 5, "num_workers" -> 2, "use_external_memory" -> true, "missing" -> 0)
     import DataUtils._
     val sparkSession = SparkSession.builder().getOrCreate()
